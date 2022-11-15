@@ -555,12 +555,26 @@ double VirtualisationInfrastructureManager::calculateProcessingTime(int ueAppID,
 
         return time;
     }
+    else if(ueAppID == -1)
+    {
+        double time;
+        printResources();
+        // 1 CPU is assumed by default
+        double currentSpeed = 1 *(maxCPU/allocatedCPU);
+        time = numOfInstructions/currentSpeed;
+        EV << "VirtualisationInfrastructureManager::calculateProcessingTime - calculated time: " << time << endl;
+
+        return time;
+
+    }
     else
     {
         EV << "VirtualisationInfrastructureManager::calculateProcessingTime - ZERO " << endl;
         return 0;
     }
 }
+
+
 
 
 ResourceDescriptor VirtualisationInfrastructureManager::getAvailableResources() const {

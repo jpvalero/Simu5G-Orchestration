@@ -1,0 +1,15 @@
+<config>
+   <interface hosts="gnb*" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>    <interface hosts="ue*" names="cellular" address="10.x.x.x" netmask="255.0.0.0"/>
+    
+    <!-- Assign 192.168.x.x addresses to all other interfaces -->
+    <interface hosts="**" address="192.168.x.x" netmask="255.255.255.0"/>
+    
+    <route hosts="iUpf1" destination="10.0.0.2" netmask="255.255.255.255" gateway="192.168.0.1" interface="ppp0" metric="0"/>
+    <route hosts="iUpf1" destination="192.168.6.2" netmask="255.255.255.255" gateway="192.168.0.1" interface="ppp0" metric="0"/>
+    <route hosts="iUpf1" destination="192.168.9.2" netmask="255.255.255.255" gateway="192.168.0.1" interface="ppp0" metric="0"/>
+    
+    <route hosts="gnb2" destination="192.168.12.1" netmask="255.255.255.255" gateway="192.168.6.1" interface="pppIf" metric="0"/>
+    <route hosts="gnb2" destination="192.168.4.2" netmask="255.255.255.255" gateway="192.168.6.1" interface="pppIf" metric="0"/>
+    <route hosts="gnb2" destination="192.168.0.2" netmask="255.255.255.255" gateway="192.168.6.1" interface="pppIf" metric="0"/>
+    <route hosts="gnb2" destination="192.168.3.1" netmask="255.255.255.255" gateway="192.168.6.1" interface="pppIf" metric="0"/>    
+</config>
