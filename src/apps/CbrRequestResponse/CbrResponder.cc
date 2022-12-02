@@ -45,8 +45,7 @@ void CbrResponder::initialize(int stage)
             destAddress_ = inet::L3AddressResolver().resolve(par("destAddress").stringValue());
             destPort_ = par("destPort");
 
-            if( enableVimComputing_ )
-                vim = check_and_cast<VirtualisationInfrastructureManager*>(getParentModule()->getSubmodule("vim"));
+            vim = check_and_cast<VirtualisationInfrastructureManager*>(getParentModule()->getSubmodule("vim"));
             processingTimer_  = new cMessage("computeMsg");
         }
     }
@@ -85,8 +84,13 @@ void CbrResponder::handleMessage(cMessage *msg)
 
         // generate reply
         simtime_t processingTime = 0;
-        if( enableVimComputing_ )
-            processingTime = vim->calculateProcessingTime(-1, 10000000);
+        if( par("enableVimComputing").boolValue() )
+        {
+            int numInstructions = par("serviceComplexity").intValue() * 1000000;
+            processingTime = vim->calculateProcessingTime(-1, numInstructions) ;
+            EV << "CbrResponder::handleMessage - requesting a processing time of " << processingTime << " seconds for " << numInstructions << " instructions" <<endl;
+        }
+
 
         respPacket_ = new Packet("CBR");
         auto cbr = makeShared<CbrResponse>();

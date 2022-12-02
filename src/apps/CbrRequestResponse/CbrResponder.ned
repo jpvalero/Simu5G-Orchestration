@@ -23,6 +23,9 @@ simple CbrResponder like IApp
         string destAddress;
         
         int responseSize = default(40);
+        
+        bool enableVimComputing @mutable = default(false);
+        int serviceComplexity @mutable = default(100); // expressed in million of instructions
 
         @signal[cbrReqFrameDelaySignal](type="simtime_t");
         @signal[cbrReqJitterSignal](type="simtime_t");

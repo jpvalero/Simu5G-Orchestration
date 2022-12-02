@@ -23,7 +23,7 @@ using namespace std;
 simsignal_t CbrRequester::cbrReqGeneratedThroughtputSignal_ = registerSignal("cbrReqGeneratedThroughtputSignal");
 simsignal_t CbrRequester::cbrReqGeneratedBytesSignal_ = registerSignal("cbrReqGeneratedBytesSignal");
 simsignal_t CbrRequester::cbrReqSentPktSignal_ = registerSignal("cbrReqSentPktSignal");
-simsignal_t CbrRequester::cbrReqRoundTripSignal_ = registerSignal("cbrReqRoundTripSignal");
+simsignal_t CbrRequester::cbrReqServiceTimeSignal_ = registerSignal("cbrReqServiceTimeSignal");
 
 
 CbrRequester::CbrRequester()
@@ -83,6 +83,8 @@ void CbrRequester::handleMessage(cMessage *msg)
             if( simTime() <= finishTime_ || finishTime_ == 0 )
                 sendCbrRequest();
         }
+        else if(msg->isName("localTimer"))
+            doLocalService(msg);
         else
             initTraffic();
     }
@@ -131,28 +133,38 @@ void CbrRequester::initTraffic()
 
 void CbrRequester::sendCbrRequest()
 {
-    // ============== DEMO GM
-    // check if gNB has changed
-    // if yes, switch dest address
-    // destAddress_ = inet::L3AddressResolver().resolve(par("secondaryDestAddress").stringValue());
-
-    Packet* packet = new Packet("CBR");
-    auto cbr = makeShared<CbrRequest>();
-    cbr->setNframes(nframes_);
-    cbr->setIDframe(iDframe_++);
-    cbr->setPayloadTimestamp(simTime());
-    cbr->setPayloadSize(size_);
-    cbr->setChunkLength(B(size_));
-    cbr->addTag<CreationTimeTag>()->setCreationTime(simTime());
-    packet->insertAtBack(cbr);
-
-    emit(cbrReqGeneratedBytesSignal_,size_);
-
-    if( simTime() > getSimulation()->getWarmupPeriod() )
+    if(par("enableLocalComputation").boolValue())
     {
-        txBytes_ += size_;
+        simtime_t minTime = par("minLocalComputeTime");
+        simtime_t maxTime = par("maxLocalComputeTime");
+
+        simtime_t computeTime = uniform(minTime,maxTime);
+        EV << "CbrRequester::sendCbrRequest - handling service request locally in "<< computeTime << " seconds"<< endl;
+        omnetpp::cMessage* localTimer = new cMessage("localTimer");
+        localTimer->setTimestamp();
+        scheduleAfter(computeTime, localTimer);
     }
-    socket.sendTo(packet, destAddress_, destPort_);
+    else
+    {
+        EV << "CbrRequester::sendCbrRequest - handling service request remotely" << endl;
+        Packet* packet = new Packet("CBR");
+        auto cbr = makeShared<CbrRequest>();
+        cbr->setNframes(nframes_);
+        cbr->setIDframe(iDframe_++);
+        cbr->setPayloadTimestamp(simTime());
+        cbr->setPayloadSize(size_);
+        cbr->setChunkLength(B(size_));
+        cbr->addTag<CreationTimeTag>()->setCreationTime(simTime());
+        packet->insertAtBack(cbr);
+
+        emit(cbrReqGeneratedBytesSignal_,size_);
+
+        if( simTime() > getSimulation()->getWarmupPeriod() )
+        {
+            txBytes_ += size_;
+        }
+        socket.sendTo(packet, destAddress_, destPort_);
+    }
 
     scheduleAt(simTime() + sampling_time, selfSource_);
 }
@@ -164,12 +176,22 @@ void CbrRequester::handleResponse(cMessage *msg)
     auto cbrHeader = pPacket->popAtFront<CbrResponse>();
 
     simtime_t rtt = simTime()-cbrHeader->getPayloadTimestamp();
-    emit(cbrReqRoundTripSignal_,rtt );
+    emit(cbrReqServiceTimeSignal_,rtt );
 
     EV << "CbrRequester::handleMessage - response received after " << rtt << " seconds." << endl;
 
     delete msg;
 }
+
+void CbrRequester::doLocalService(omnetpp::cMessage *msg)
+{
+    simtime_t service = simTime() - msg->getTimestamp();
+    emit(cbrReqServiceTimeSignal_,service );
+    EV << "CbrRequester::doLocalService - local response received after " << service << " seconds." << endl;
+
+    delete msg;
+}
+
 
 void CbrRequester::finish()
 {

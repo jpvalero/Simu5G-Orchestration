@@ -29,6 +29,7 @@ class CbrRequester : public omnetpp::cSimpleModule
     bool initialized_;
 
     omnetpp::cMessage* selfSource_;
+
     //sender
     int nframes_;
     int iDframe_;
@@ -41,7 +42,7 @@ class CbrRequester : public omnetpp::cSimpleModule
     static omnetpp::simsignal_t cbrReqGeneratedThroughtputSignal_;
     static omnetpp::simsignal_t cbrReqGeneratedBytesSignal_;
     static omnetpp::simsignal_t cbrReqSentPktSignal_;
-    static omnetpp::simsignal_t cbrReqRoundTripSignal_;
+    static omnetpp::simsignal_t cbrReqServiceTimeSignal_;
 
     int txBytes_;
     // ----------------------------
@@ -69,6 +70,7 @@ class CbrRequester : public omnetpp::cSimpleModule
     void handleMessage(omnetpp::cMessage *msg) override;
 
     void handleResponse(omnetpp::cMessage *msg);
+    void doLocalService(omnetpp::cMessage *msg);
 };
 
 #endif
