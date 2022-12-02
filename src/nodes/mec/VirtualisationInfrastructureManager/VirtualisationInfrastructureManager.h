@@ -96,6 +96,9 @@ class VirtualisationInfrastructureManager : public cSimpleModule
     int mecAppPortCounter; // counter to assign socket ports to Mec Apps
     //------------------------------------
 
+    omnetpp::cMessage* selfSource_;
+    bool enableSynteticLoad_;
+    simtime_t synteticTiming_;
 
     //-------------------------------------
     // OMNeT++-like MEC service management
@@ -201,6 +204,8 @@ class VirtualisationInfrastructureManager : public cSimpleModule
             EV << "VirtualisationInfrastructureManager::printResources - allocated Disk: " << allocatedDisk << " / " << maxDisk << endl;
             EV << "VirtualisationInfrastructureManager::printResources - allocated CPU: " << allocatedCPU << " / " << maxCPU << endl;
         }
+
+        void updateSynteticLoad(cMessage *msg);
 
     protected:
 

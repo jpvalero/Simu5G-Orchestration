@@ -121,13 +121,19 @@ void VirtualisationInfrastructureManager::initialize(int stage)
     }
     mecAppPortCounter = 4001;
 
+    selfSource_ = new cMessage("synteticTimer");
+    synteticTiming_ = par("synteticTiming");
+    if(par("enableSynteticLoad").boolValue())
+        scheduleAfter(synteticTiming_, selfSource_);
+
     //reserve resources of the bgApps!
     reserveResourcesBGApps();
 }
 void VirtualisationInfrastructureManager::handleMessage(cMessage *msg)
 {
     if (msg->isSelfMessage())
-        return;
+        updateSynteticLoad(msg);
+        //return;
 }
 
 bool VirtualisationInfrastructureManager::instantiateEmulatedMEApp(CreateAppMessage* msg)
@@ -600,6 +606,16 @@ void VirtualisationInfrastructureManager::reserveResourcesBGApps()
         double cpu = bgApp->par("cpu");
         registerMecApp(bgApp->getId(), ram, disk, cpu);
     }
+}
+
+void VirtualisationInfrastructureManager::updateSynteticLoad(cMessage *msg)
+{
+    double ramStep = par("ramStep").doubleValue();
+    double diskStep = par("diskStep").doubleValue();
+    double cpuStep = par("cpuStep").doubleValue();
+    allocateResources(ramStep, diskStep, cpuStep);
+
+    scheduleAfter(synteticTiming_, msg);
 }
 
 

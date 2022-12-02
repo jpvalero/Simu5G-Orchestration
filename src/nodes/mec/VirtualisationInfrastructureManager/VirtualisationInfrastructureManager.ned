@@ -28,6 +28,13 @@ simple VirtualisationInfrastructureManager
         int mp1Port = default(10021);
         string scheduling = default("segregation");
         
+        double synteticTiming @unit("s") = default(1s);
+        bool enableSynteticLoad = default(false);
+        
+        double ramStep = default(1);
+    	double diskStep = default(1);
+    	double cpuStep = default(10);
+        
     gates:
         input virtualisationManagerIn;
         output virtualisationManagerOut;
