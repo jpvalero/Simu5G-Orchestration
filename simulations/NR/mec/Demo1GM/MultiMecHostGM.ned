@@ -93,8 +93,8 @@ network MultiMecHostGM
     connections:
 
         //# 5G Core Network connections
-        upf.pppg++ <--> Eth10G {length=100km;}<--> iUpf1.pppg++;
-        upf.pppg++ <--> Eth10G {length=100km;} <--> iUpf2.pppg++;
+        upf.pppg++ <--> Eth10G {length=1000km;}<--> iUpf1.pppg++;
+        upf.pppg++ <--> Eth10G {length=1000km;} <--> iUpf2.pppg++;
         iUpf1.pppg++ <--> Eth10G <--> gnb1.ppp;
         iUpf2.pppg++ <--> Eth10G <--> gnb2.ppp;
 
