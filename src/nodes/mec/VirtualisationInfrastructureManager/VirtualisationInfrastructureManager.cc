@@ -566,9 +566,10 @@ double VirtualisationInfrastructureManager::calculateProcessingTime(int ueAppID,
         double time;
         printResources();
         // 1 CPU is assumed by default
-        double currentSpeed = 1 *(maxCPU/allocatedCPU);
+        double actualCpus = (allocatedCPU == 0)? 1: allocatedCPU;
+        double currentSpeed = 10 *(maxCPU/actualCpus);
         time = numOfInstructions/currentSpeed;
-        EV << "VirtualisationInfrastructureManager::calculateProcessingTime - calculated time: " << time << endl;
+        EV << "VirtualisationInfrastructureManager::calculateProcessingTime - actualCpus=" << actualCpus << " - currentSpeed=" << currentSpeed << " -  calculated time: " << time << endl;
 
         return time;
 
