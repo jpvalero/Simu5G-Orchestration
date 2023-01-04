@@ -39,6 +39,8 @@ class CbrRequester : public omnetpp::cSimpleModule
     omnetpp::simtime_t startTime_;
     omnetpp::simtime_t finishTime_;
 
+    omnetpp::cOutVector rt_stats_;
+
     static omnetpp::simsignal_t cbrReqGeneratedThroughtputSignal_;
     static omnetpp::simsignal_t cbrReqGeneratedBytesSignal_;
     static omnetpp::simsignal_t cbrReqSentPktSignal_;

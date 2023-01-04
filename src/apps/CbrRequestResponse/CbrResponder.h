@@ -52,6 +52,8 @@ class CbrResponder : public omnetpp::cSimpleModule
 
     VirtualisationInfrastructureManager* vim;
 
+    omnetpp::cOutVector rt_stats_;
+
     omnetpp::simsignal_t cbrReqRcvdPkt_;
 
   protected:

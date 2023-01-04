@@ -58,6 +58,7 @@ void CbrRequester::initialize(int stage)
 
         txBytes_ = 0;
 
+        rt_stats_.setName("response_time_vector");
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER)
     {
@@ -177,6 +178,7 @@ void CbrRequester::handleResponse(cMessage *msg)
 
     simtime_t rtt = simTime()-cbrHeader->getPayloadTimestamp();
     emit(cbrReqServiceTimeSignal_,rtt );
+    rt_stats_.record(rtt);
 
     EV << "CbrRequester::handleMessage - response received after " << rtt << " seconds." << endl;
 

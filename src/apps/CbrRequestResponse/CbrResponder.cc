@@ -32,6 +32,8 @@ void CbrResponder::initialize(int stage)
         cbrReqRcvdPkt_ = registerSignal("cbrReqRcvdPkt");
         respSize_ = par("responseSize");
         enableVimComputing_ = false;
+
+        rt_stats_.setName("processingTime");
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER)
     {
@@ -89,6 +91,8 @@ void CbrResponder::handleMessage(cMessage *msg)
             int numInstructions = par("serviceComplexity").doubleValue() * 1000000;
             processingTime = vim->calculateProcessingTime(-1, numInstructions) ;
             EV << "CbrResponder::handleMessage - requesting a processing time of " << processingTime << " seconds for " << numInstructions << " instructions" <<endl;
+
+            rt_stats_.record(processingTime);
         }
 
 
