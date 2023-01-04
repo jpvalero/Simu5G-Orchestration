@@ -51,7 +51,7 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
 
     private:
         std::map<int, BgMecAppDescriptor> bgMecApps_;
-        int lastMecHostActiveted_; // maintans the index of mecHosts_ vector of the last mec host
+        int lastMecHostActivated_; // maintans the index of mecHosts_ vector of the last mec host
         std::vector<cModule*> mecHosts_;
         std::vector<cModule*> runningMecHosts_;
 
@@ -72,8 +72,13 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         double deltaTime_;
         double mecHostActivationTime_;
         int maxBgMecApp_;
+        int minBgMecApp_;
         int currentBgMecApps_;
         Mode mode_;
+
+        void updateBgMecAppsLoad(int numApps);
+
+        void dummyOrchestration( int numApps );
 
 
     public:
@@ -87,9 +92,13 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         void scheduleNextSnapshot();
 
         // this method calls createBgMecApp and createBgUe
-        bool createBgModules();
+        bool createBgModules(cModule* mecHost = nullptr);
         cModule * createBgMecApp(int id);
         cModule * createBgUE(int id);
+
+        bool relocateBgMecApp(int appId, cModule* mecHost);
+
+
 
         // this method calls deleteBgMecApp and deleteBgUe
         void deleteBgModules();
@@ -101,6 +110,7 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         cModule* chooseMecHost();
         void activateNewMecHost();
         void deactivateNewMecHost(cModule* module);
+        void deactivateLastMecHost();
         bool isMecHostEmpty(cModule* module);
 
 

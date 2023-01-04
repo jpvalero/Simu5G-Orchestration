@@ -28,6 +28,7 @@ simple BgMecAppManager
         // if automatic == true
         double deltaTime @unit(s) = default(1s);
         int maxBgMecApps = default(10);
+        int minBgMecApps = default(5);
         double defaultRam @unit(B) = default(100MB);
         double defaultDisk @unit(B) = default(100MB);
         double defaultCpu  = default(5000); // Expressed in MIPs

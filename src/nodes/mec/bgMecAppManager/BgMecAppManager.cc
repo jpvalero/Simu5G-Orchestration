@@ -47,9 +47,11 @@ void BgMecAppManager::initialize(int stage)
     bgAppsVector_.setName("MecBgApps");
 
     fromTraceFile_ = par("fromTraceFile").boolValue();
-    lastMecHostActiveted_ = -1;
+    lastMecHostActivated_ = -1;
     mecHostActivationTime_ = par("mecHostActivation");
     maxBgMecApp_ = par("maxBgMecApps");
+    minBgMecApp_ = par("minBgMecApps");
+
     admissionControl_ = par("admissionControl");
     currentBgMecApps_ = 0;
     readMecHosts();
@@ -135,16 +137,21 @@ void BgMecAppManager::scheduleNextSnapshot()
     }
 }
 
-bool BgMecAppManager::createBgModules()
+bool BgMecAppManager::createBgModules(cModule* mecHost)
  {
      // the way it is currently written is for use in a loop wherein currentBgMecApps_ is incremented at every cycle
      int id = currentBgMecApps_;
+
+     EV << "BgMecAppManager::createBgModules - creating app " << id << endl;
      ResourceDescriptor resource = {defaultRam_, defaultDisk_, defaultCpu_};
      BgMecAppDescriptor appDescriptor;
      appDescriptor.centerX = par("centerX");
      appDescriptor.centerY = par("centerY");
      appDescriptor.radius = par("radius");
-     appDescriptor.mecHost = chooseMecHost();
+     if( mecHost == nullptr )
+         appDescriptor.mecHost = chooseMecHost();
+     else
+         appDescriptor.mecHost = mecHost;
      appDescriptor.resources = resource;
      appDescriptor.timer = nullptr;
 
@@ -177,11 +184,35 @@ bool BgMecAppManager::createBgModules()
      int id = --currentBgMecApps_;
      deleteBgMecApp(id);
      deleteBgUe(id);
-     if(isMecHostEmpty(bgMecApps_[id].mecHost))
-         deactivateNewMecHost(bgMecApps_[id].mecHost);
+
+     //if(isMecHostEmpty(bgMecApps_[id].mecHost))
+     //    deactivateNewMecHost(bgMecApps_[id].mecHost);
+
      //check if the MecHost is empty and in case deactivate it
      EV << "BgMecAppManager::handleMessage - bg environment with id [" << id << "] stopped" << endl;
  }
+
+bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
+{
+    EV << "BgMecAppManager::relocateBgMecApp - relocating app " << appId << endl;
+    if(bgMecApps_.find(appId) == bgMecApps_.end())
+    {
+        throw cRuntimeError("BgMecAppManager::relocateBgMecApp mec app %d does not exist",appId);
+    }
+    BgMecAppDescriptor appDescriptor = bgMecApps_[appId];
+    appDescriptor.mecHost = mecHost;
+
+    deleteBgMecApp(appId);
+
+    // this does the insertion into the map
+    bgMecApps_[appId] = appDescriptor;
+
+    cModule* bgAppModule = createBgMecApp(appId);
+    bgMecApps_[appId].bgMecApp = bgAppModule;
+
+    return true;
+ }
+
 
  void BgMecAppManager::handleMessage(cMessage* msg)
 {
@@ -193,30 +224,18 @@ bool BgMecAppManager::createBgModules()
             int numApps = snapshotList_.front().numMecApps;
             EV << "BgMecAppManager::handleMessage (snapshotMsg) - current number of BG Mec Apps " << currentBgMecApps_ << ", expected " << numApps << endl;
 
-            while(currentBgMecApps_ != numApps)
-            {
-                if(currentBgMecApps_ < numApps)
-                {
-                    if(!createBgModules())
-                        break;
-                }
-                else
-                {
-                    deleteBgModules();
-                }
-                if(currentBgMecApps_ == maxBgMecApp_)
-                {
-                    EV << "BgMecAppManager::handleMessage (snapshotMsg) - Scheduled activation of a new Mec host in " << mecHostActivationTime_ << " seconds" << endl;
-                    cMessage* activateMecHostMsg = new cMessage("mecHostActivation");
-                    scheduleAfter(mecHostActivationTime_, activateMecHostMsg);
-                }
-            }
+            // call orchestration algorithm HERE
+            dummyOrchestration( numApps );
+
+            updateBgMecAppsLoad(numApps);
 
             //schedule next snapshot
             snapshotList_.pop_front();
             bgAppsVector_.record(currentBgMecApps_);
             scheduleNextSnapshot();
         }
+
+
 
         // ==========================
         //          IGNORE THIS
@@ -257,6 +276,75 @@ bool BgMecAppManager::createBgModules()
         }
     }
 
+}
+
+void BgMecAppManager::dummyOrchestration( int numApps )
+{
+    EV << "BgMecAppManager::dummyOrchestration - apps per hosts: " << numApps/runningMecHosts_.size() << ". max[" << maxBgMecApp_ << "] - min[" << minBgMecApp_ << "]" << endl;
+    if( numApps/runningMecHosts_.size() >= maxBgMecApp_)
+    {
+        EV << "BgMecAppManager::dummyOrchestration - Scheduled activation of a new Mec host now." << endl; // << mecHostActivationTime_ << " seconds" << endl;
+        // cMessage* activateMecHostMsg = new cMessage("mecHostActivation");
+        // scheduleAfter(mecHostActivationTime_, activateMecHostMsg);
+        activateNewMecHost();
+    }
+    else if( numApps/runningMecHosts_.size() <= minBgMecApp_ )
+    {
+        EV << "BgMecAppManager::dummyOrchestration - Scheduled deactivation of a Mec host now" << endl; // in " << mecHostActivationTime_ << " seconds" << endl;
+        deactivateLastMecHost();
+    }
+}
+
+void BgMecAppManager::updateBgMecAppsLoad(int numApps)
+{
+    int deltaApps = numApps - currentBgMecApps_;
+
+    EV << "BgMecAppManager::updateBgMecAppsLoad - currentApps[" << currentBgMecApps_ << "] - targetApps[" << numApps << "] - deltaApps[" << deltaApps << "]" << endl;
+
+    // first delete applications if needed
+    if( deltaApps < 0 )
+    {
+        for( int n = 0 ; n < -deltaApps ; n++ )
+            deleteBgModules();
+    }
+
+    // relocate a total of currentBgMecApps_ over lastMecHostActivated_
+    int appPerHost = floor(currentBgMecApps_ / (lastMecHostActivated_+1));
+    EV << "BgMecAppManager::updateBgMecAppsLoad - RELOCATION: appsPerHost = " << currentBgMecApps_<< " / " << lastMecHostActivated_+1 << " = " << appPerHost << endl;
+    int hostId = 0, appId = 0;
+
+    for( hostId = 0 ; hostId <= lastMecHostActivated_ ; ++hostId )
+    {
+        for( appId = 0 ; appId < appPerHost ; ++appId )
+            relocateBgMecApp(appId+(hostId*appPerHost), runningMecHosts_[hostId]);
+    }
+
+    // handle remaining app (in case currentBgMecApps_ is not a multiple of lastMecHostActivated_
+    if( appId < currentBgMecApps_ )
+    {
+        EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app" << endl;
+        relocateBgMecApp(appId, runningMecHosts_[0]);
+    }
+
+    // create applications if needed
+    if( deltaApps > 0 )
+    {
+        // activate a total of deltaApps over lastMecHostActivated_
+        appPerHost = floor(deltaApps / (lastMecHostActivated_+1));
+        EV << "BgMecAppManager::updateBgMecAppsLoad - CREATION: appsPerHost = " << deltaApps<< " / " << lastMecHostActivated_+1 << " = " << appPerHost << endl;
+
+        for( hostId = 0 ; hostId <= lastMecHostActivated_ ; ++hostId )
+        {
+            for( appId = 0 ; appId < appPerHost ; ++appId )
+                createBgModules(runningMecHosts_[hostId]);
+        }
+        // handle remaining app (in case deltaApps is not a multiple of lastMecHostActivated_
+        if( appId < deltaApps )
+        {
+            EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app" << endl;
+            createBgModules(runningMecHosts_[lastMecHostActivated_]);
+        }
+    }
 }
 
 
@@ -386,18 +474,18 @@ cModule* BgMecAppManager::chooseMecHost()
 }
 
 // the policy used to activate and deactivate does not require the  runningMecHosts_ var
-// just the lastMecHostActiveted_ is necessary, but more complex policies will be implemented
+// just the lastMecHostActivated_ is necessary, but more complex policies will be implemented
 
 void BgMecAppManager::activateNewMecHost()
 {
-    if(lastMecHostActiveted_ == mecHosts_.size() -1)
+    if(lastMecHostActivated_ == mecHosts_.size() -1)
     {
         EV << "BgMecAppManager::activateNewMecHost() - no more mecHosts are available" << endl;
     }
     else
     {
-        EV << "BgMecAppManager::activateNewMecHost() - turning on Mec host with index " << lastMecHostActiveted_+1  << endl;
-        cModule* mh = mecHosts_[++lastMecHostActiveted_];
+        EV << "BgMecAppManager::activateNewMecHost() - turning on Mec host with index " << lastMecHostActivated_+1  << endl;
+        cModule* mh = mecHosts_[++lastMecHostActivated_];
         mh->getDisplayString().setTagArg("i",1, "green");
         runningMecHosts_.push_back(mh);
     }
@@ -418,11 +506,27 @@ void BgMecAppManager::deactivateNewMecHost(cModule* mecHost)
             EV << "BgMecAppManager::deactivateNewMecHost() - mec Host deactivated" << endl;
             (*it)->getDisplayString().setTagArg("i",1, "red");
             runningMecHosts_.erase(it);
-            lastMecHostActiveted_--;
+            lastMecHostActivated_--;
             return;
         }
     }
     EV << "BgMecAppManager::deactivateNewMecHost() - mec Host not found in running mecHostList" << endl;
+}
+
+void BgMecAppManager::deactivateLastMecHost()
+{
+    if(runningMecHosts_.size() == 1)
+    {
+        EV << "BgMecAppManager::deactivatLastMecHost: at least one MEC host must be present" << endl;
+        return;
+    }
+
+    runningMecHosts_.back()->getDisplayString().setTagArg("i",1, "red");
+    runningMecHosts_.pop_back();
+    lastMecHostActivated_--;
+
+    EV << "BgMecAppManager::deactivatLastMecHost - mec Host deactivated" << endl;
+    return;
 }
 
 bool BgMecAppManager::isMecHostEmpty(cModule* mecHost)
