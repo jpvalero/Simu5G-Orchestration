@@ -56,7 +56,7 @@ void BgMecAppManager::initialize(int stage)
 
     defaultRam_ = par("defaultRam");
     defaultDisk_ = par("defaultDisk");
-    defaultCpu_ = par("defaultCpu");
+    defaultCpu_ = par("defaultCpu"); // Expressed in MIPs
     if(!fromTraceFile_)
     {
         deltaTime_ = par("deltaTime").doubleValue();
@@ -137,6 +137,7 @@ void BgMecAppManager::scheduleNextSnapshot()
 
 bool BgMecAppManager::createBgModules()
  {
+     // the way it is currently written is for use in a loop wherein currentBgMecApps_ is incremented at every cycle
      int id = currentBgMecApps_;
      ResourceDescriptor resource = {defaultRam_, defaultDisk_, defaultCpu_};
      BgMecAppDescriptor appDescriptor;
@@ -147,6 +148,7 @@ bool BgMecAppManager::createBgModules()
      appDescriptor.resources = resource;
      appDescriptor.timer = nullptr;
 
+     // this does the insertion into the map
      bgMecApps_[id] = appDescriptor;
 
      cModule* bgAppModule = createBgMecApp(id);
@@ -190,13 +192,13 @@ bool BgMecAppManager::createBgModules()
             // read running bgApp
             int numApps = snapshotList_.front().numMecApps;
             EV << "BgMecAppManager::handleMessage (snapshotMsg) - current number of BG Mec Apps " << currentBgMecApps_ << ", expected " << numApps << endl;
+
             while(currentBgMecApps_ != numApps)
             {
                 if(currentBgMecApps_ < numApps)
                 {
                     if(!createBgModules())
                         break;
-
                 }
                 else
                 {
@@ -215,6 +217,10 @@ bool BgMecAppManager::createBgModules()
             bgAppsVector_.record(currentBgMecApps_);
             scheduleNextSnapshot();
         }
+
+        // ==========================
+        //          IGNORE THIS
+        // ==========================
         else if(msg->isName("deltaMsg"))
         {
             if(mode_ == CREATE)
@@ -241,6 +247,9 @@ bool BgMecAppManager::createBgModules()
             scheduleAfter(deltaTime_, deltaMsg_);
             bgAppsVector_.record(currentBgMecApps_);
         }
+        // ==========================
+
+
         else if(msg->isName("mecHostActivation"))
         {
             activateNewMecHost();

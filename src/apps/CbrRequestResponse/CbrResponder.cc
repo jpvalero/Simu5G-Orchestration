@@ -86,7 +86,7 @@ void CbrResponder::handleMessage(cMessage *msg)
         simtime_t processingTime = 0;
         if( par("enableVimComputing").boolValue() )
         {
-            int numInstructions = par("serviceComplexity").intValue() * 1000000;
+            int numInstructions = par("serviceComplexity").doubleValue() * 1000000;
             processingTime = vim->calculateProcessingTime(-1, numInstructions) ;
             EV << "CbrResponder::handleMessage - requesting a processing time of " << processingTime << " seconds for " << numInstructions << " instructions" <<endl;
         }

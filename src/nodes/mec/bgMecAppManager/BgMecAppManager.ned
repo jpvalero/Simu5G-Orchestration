@@ -30,7 +30,7 @@ simple BgMecAppManager
         int maxBgMecApps = default(10);
         double defaultRam @unit(B) = default(100MB);
         double defaultDisk @unit(B) = default(100MB);
-        double defaultCpu  = default(5000);
+        double defaultCpu  = default(5000); // Expressed in MIPs
         double centerX @unit(m);
         double centerY @unit(m);
         double centerZ @unit(m) = 0m;

@@ -25,7 +25,7 @@ simple CbrResponder like IApp
         int responseSize = default(40);
         
         bool enableVimComputing @mutable = default(false);
-        int serviceComplexity @mutable = default(100); // expressed in million of instructions
+        double serviceComplexity @mutable = default(1); // expressed in fractions of MIPs (the actual number of instructions will be rounded to the closest integer)
 
         @signal[cbrReqFrameDelaySignal](type="simtime_t");
         @signal[cbrReqJitterSignal](type="simtime_t");
