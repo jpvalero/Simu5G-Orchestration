@@ -36,9 +36,14 @@ network mec_network
         double playgroundSizeX @unit(m); // x size of the area the nodes are in (in meters)
         double playgroundSizeY @unit(m); // y size of the area the nodes are in (in meters)
         double playgroundSizeZ @unit(m); // z size of the area the nodes are in (in meters)
+        
+        @statistic[serviceLatency](source=ue[0].app[0].cbrReqServiceTimeSignal; record=figure; targetFigure=serviceLatencyGauge; checkSignals=false);
+    	@figure[serviceLatencyGauge](type=gauge; pos=190,30; size=100,100; minValue=0; maxValue=1; tickSize=0.1; label="App service latency");
+    	
+	    @statistic[serviceLatency2](source=ue[0].app[0].cbrReqServiceTimeSignal*1000; record=figure; targetFigure=serviceLatencyGauge2; checkSignals=false);
+    	@figure[serviceLatencyGauge2](type=plot; pos=700,140; size=400,200; timeWindow=1; maxY=1000; yTickSize=100; label="App service latency");
 
     submodules:
-
         routingRecorder: RoutingTableRecorder {
             @display("p=690,104.88;is=s");
         }
