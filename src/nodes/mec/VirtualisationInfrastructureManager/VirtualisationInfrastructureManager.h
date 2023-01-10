@@ -106,6 +106,8 @@ class VirtualisationInfrastructureManager : public cSimpleModule
     bool enableSynteticLoad_;
     simtime_t synteticTiming_;
 
+    omnetpp::cMessage* updateStatsTimer_;
+
     //-------------------------------------
     // OMNeT++-like MEC service management
     // set of MEC Services loaded into the MEC host & platform
@@ -179,6 +181,7 @@ class VirtualisationInfrastructureManager : public cSimpleModule
          */
         bool registerMecApp(int mecAppID, int reqRam, int reqDisk, int reqCpu, bool admControl = true);
         bool deRegisterMecApp(int mecAppID);
+        void updateMecAppStats();
         // ******************************************************************
 
         /*

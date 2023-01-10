@@ -130,14 +130,25 @@ void VirtualisationInfrastructureManager::initialize(int stage)
     if(par("enableSynteticLoad").boolValue())
         scheduleAfter(synteticTiming_, selfSource_);
 
+    updateStatsTimer_ = new cMessage("updateStatsTimer");
+    scheduleAfter(par("updateStatsPeriod"), updateStatsTimer_);
+
     //reserve resources of the bgApps!
     reserveResourcesBGApps();
 }
 void VirtualisationInfrastructureManager::handleMessage(cMessage *msg)
 {
     if (msg->isSelfMessage())
-        updateSynteticLoad(msg);
+    {
+        if(msg->isName("synteticTimer"))
+            updateSynteticLoad(msg);
+        else if(msg->isName("updateStatsTimer"))
+        {
+            updateMecAppStats();
+            scheduleAfter(par("updateStatsPeriod"), msg);
+        }
         //return;
+    }
 }
 
 bool VirtualisationInfrastructureManager::instantiateEmulatedMEApp(CreateAppMessage* msg)
@@ -515,8 +526,8 @@ bool VirtualisationInfrastructureManager::registerMecApp(int ueAppID, int reqRam
         EV << "VirtualisationInfrastructureManager::registerMecApp - ram: " << mecAppMap[ueAppID].resources.ram <<" disk: "<< mecAppMap[ueAppID].resources.disk <<" cpu: "<< mecAppMap[ueAppID].resources.cpu << endl;
         allocateResources(reqRam, reqDisk, cpu);
 
-        emit(numMecAppSignal_, currentMEApps);
-        app_stats_.record(currentMEApps);
+//        emit(numMecAppSignal_, currentMEApps);
+//        app_stats_.record(currentMEApps);
         return true;
     }
 
@@ -535,8 +546,8 @@ bool VirtualisationInfrastructureManager::deRegisterMecApp(int ueAppID)
         deallocateResources(mecAppMap[ueAppID].resources.ram, mecAppMap[ueAppID].resources.disk, mecAppMap[ueAppID].resources.cpu);
         //erasing map entry
         mecAppMap.erase(ueAppID);
-        emit(numMecAppSignal_, currentMEApps);
-        app_stats_.record(currentMEApps);
+//        emit(numMecAppSignal_, currentMEApps);
+//        app_stats_.record(currentMEApps);
         return true;
     }
     else
@@ -544,6 +555,13 @@ bool VirtualisationInfrastructureManager::deRegisterMecApp(int ueAppID)
         EV << "VirtualisationInfrastructureManager::handleMEAppResources - NO ALLOCATION FOUND for MecApp with UEAppId id " << ueAppID  << endl;
         return false;
     }
+}
+
+void VirtualisationInfrastructureManager::updateMecAppStats()
+{
+    EV << "VirtualisationInfrastructureManager::updateMecAppStats - Updating statistics for this MEC HOST" << endl;
+    emit(numMecAppSignal_, currentMEApps);
+    app_stats_.record(currentMEApps);
 }
 
 double VirtualisationInfrastructureManager::calculateProcessingTime(int ueAppID, int numOfInstructions)

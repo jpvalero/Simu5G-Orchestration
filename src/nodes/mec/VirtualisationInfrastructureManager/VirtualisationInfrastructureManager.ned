@@ -31,6 +31,8 @@ simple VirtualisationInfrastructureManager
         double synteticTiming @unit("s") = default(1s);
         bool enableSynteticLoad = default(false);
         
+        double updateStatsPeriod @unit("s") = default(0.1s);
+        
         double ramStep = default(1);
     	double diskStep = default(1);
     	double cpuStep = default(10);
