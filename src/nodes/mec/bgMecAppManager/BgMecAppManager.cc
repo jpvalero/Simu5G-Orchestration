@@ -56,6 +56,20 @@ void BgMecAppManager::initialize(int stage)
     currentBgMecApps_ = 0;
     readMecHosts();
 
+    int orch = par("orchestrationType").intValue();
+    switch(orch)
+    {
+        case 0:
+            orchestrationType_ = DUMMY_ORCHESTRATION;
+            break;
+        case 1:
+            orchestrationType_ = EXTERNAL_ORCHESTRATION;
+            break;
+        default:
+            orchestrationType_ = DUMMY_ORCHESTRATION;
+    }
+
+
     defaultRam_ = par("defaultRam");
     defaultDisk_ = par("defaultDisk");
     defaultCpu_ = par("defaultCpu"); // Expressed in MIPs
@@ -225,9 +239,9 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
             EV << "BgMecAppManager::handleMessage (snapshotMsg) - current number of BG Mec Apps " << currentBgMecApps_ << ", expected " << numApps << endl;
 
             // call orchestration algorithm HERE
-            dummyOrchestration( numApps );
+            doOrchestration( numApps );
 
-            updateBgMecAppsLoad(numApps);
+            updateBgMecAppsLoad( numApps );
 
             //schedule next snapshot
             snapshotList_.pop_front();
@@ -275,8 +289,25 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
             delete msg;
         }
     }
-
 }
+
+void BgMecAppManager::doOrchestration( int numApps )
+{
+    switch(orchestrationType_)
+    {
+        case DUMMY_ORCHESTRATION:
+            dummyOrchestration( numApps );
+            break;
+        case EXTERNAL_ORCHESTRATION:
+            externalOrchestration(numApps);
+            break;
+        default:
+            dummyOrchestration( numApps );
+            break;
+    }
+    return;
+}
+
 
 void BgMecAppManager::dummyOrchestration( int numApps )
 {
@@ -295,19 +326,59 @@ void BgMecAppManager::dummyOrchestration( int numApps )
     }
 }
 
+void BgMecAppManager::externalOrchestration(int numApps)
+{
+    EV << "BgMecAppManager::externalOrchestration - calling external orchestrator for " << numApps << " tasks" << endl;
+
+    std::stringstream cmd;
+    cmd << "python3 ./external_orchestration.py ";
+
+    // k: current number of tasks
+    // m: number of servers
+    // n: server capacity
+    cmd << numApps << " " << lastMecHostActivated_+1 << " " << maxBgMecApp_ ;
+
+    cmd << " > decisionFile.txt";
+
+    std::string commandString = cmd.str();
+
+    EV << "BgMecAppManager::externalOrchestration - launching command " << commandString << endl;
+    system(cmd.str().c_str());
+
+    std::ifstream inputFileStream;
+    inputFileStream.open("decisionFile.txt");
+
+    int activate;
+    inputFileStream >> activate;
+
+    EV << "BgMecAppManager::externalOrchestration - decision is " << activate << endl;
+    if ( activate == 1 )
+        activateNewMecHost();
+    else if( activate == -1 )
+        deactivateLastMecHost();
+    else
+        return;
+
+    return;
+}
+
 void BgMecAppManager::updateBgMecAppsLoad(int numApps)
 {
     int deltaApps = numApps - currentBgMecApps_;
 
     EV << "BgMecAppManager::updateBgMecAppsLoad - currentApps[" << currentBgMecApps_ << "] - targetApps[" << numApps << "] - deltaApps[" << deltaApps << "]" << endl;
 
+    // ==================== Service REMOVAL ====================
     // first delete applications if needed
     if( deltaApps < 0 )
     {
         for( int n = 0 ; n < -deltaApps ; n++ )
             deleteBgModules();
     }
+    // =========================================================
 
+
+    // ==================== Service RELOCATION =================
     // relocate a total of currentBgMecApps_ over lastMecHostActivated_
     int appPerHost = floor(currentBgMecApps_ / (lastMecHostActivated_+1));
     EV << "BgMecAppManager::updateBgMecAppsLoad - RELOCATION: appsPerHost = " << currentBgMecApps_<< " / " << lastMecHostActivated_+1 << " = " << appPerHost << endl;
@@ -325,7 +396,10 @@ void BgMecAppManager::updateBgMecAppsLoad(int numApps)
         EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app" << endl;
         relocateBgMecApp(appId, runningMecHosts_[0]);
     }
+    // =========================================================
 
+
+    // ================ New Service CREATION ===================
     // create applications if needed
     if( deltaApps > 0 )
     {
@@ -345,6 +419,7 @@ void BgMecAppManager::updateBgMecAppsLoad(int numApps)
             createBgModules(runningMecHosts_[lastMecHostActivated_]);
         }
     }
+    // =========================================================
 }
 
 
@@ -360,23 +435,22 @@ cModule* BgMecAppManager::createBgMecApp(int id)
 
 //    cModule *module = moduleType->create(appName.str().c_str(), bgMecApps_[id].mecHost);       //MEAPP module-name & its Parent Module
     //or
-    cModule *module = moduleType->createScheduleInit(appName.str().c_str(), bgMecApps_[id].mecHost);       //MEAPP module-name & its Parent Module
+    cModule *appModule = moduleType->createScheduleInit(appName.str().c_str(), bgMecApps_[id].mecHost);       //MEAPP module-name & its Parent Module
 
+    appModule->setName(appName.str().c_str());
+    int moduleId = appModule->getId();
 
-    module->setName(appName.str().c_str());
-
-    int moduleId = module->getId();
-
+    // register the MEC app on the VIM of the chosen MEC host
     bool success = vim->registerMecApp(moduleId, bgMecApps_[id].resources.ram, bgMecApps_[id].resources.disk, bgMecApps_[id].resources.cpu, admissionControl_);
 
     if(success)
     {
         EV << "BgMecAppManager::createBgMecApp: bgMecApp created " << appName.str() << endl;
-        return module;
+        return appModule;
     }
     else{
         EV << "BgMecAppManager::createBgMecApp: bgMecApp NOT created " << appName.str() << endl;
-        module->deleteModule();
+        appModule->deleteModule();
         return nullptr;
     }
 }

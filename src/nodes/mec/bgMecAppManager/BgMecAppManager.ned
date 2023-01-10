@@ -24,6 +24,8 @@ simple BgMecAppManager
         string traceFileName = default("");
        	double snapshotPeriod = default(-1); // if <= 0 read the timestamp in the tracefile!
 	    string mecHostList = default("mecHost"); //comma-space separatedList of MecHosts
+	    
+	    int orchestrationType = default(0); // DUMMY_ORCHESTRATION = 0 , EXTERNAL_ORCHESTRATION = 1
         
         // if automatic == true
         double deltaTime @unit(s) = default(1s);

@@ -25,6 +25,11 @@ typedef enum
     DELETE = 1
 } Mode;
 
+typedef enum {
+    DUMMY_ORCHESTRATION = 0,
+    EXTERNAL_ORCHESTRATION = 1,
+    UNKNOWN_ORCHESTRATION = 2
+}OrchestrationType;
 
 typedef struct
 {
@@ -78,7 +83,11 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
 
         void updateBgMecAppsLoad(int numApps);
 
+        OrchestrationType orchestrationType_;
+
+        void doOrchestration( int numApps );
         void dummyOrchestration( int numApps );
+        void externalOrchestration( int numApps );
 
 
     public:
@@ -93,6 +102,8 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
 
         // this method calls createBgMecApp and createBgUe
         bool createBgModules(cModule* mecHost = nullptr);
+
+        // Creates a new background MEC app having the specified id
         cModule * createBgMecApp(int id);
         cModule * createBgUE(int id);
 
