@@ -34,6 +34,11 @@ simple VirtualisationInfrastructureManager
         double ramStep = default(1);
     	double diskStep = default(1);
     	double cpuStep = default(10);
+    	
+    	@signal[numMecAppSignal];
+        @statistic[numMecApp](title="Tnumber of active mec apps"; source="numMecAppSignal"; record=timeavg,mean,vector);
+    	
+    	
         
     gates:
         input virtualisationManagerIn;

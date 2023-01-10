@@ -88,10 +88,16 @@ class VirtualisationInfrastructureManager : public cSimpleModule
     inet::Ipv4Address mp1Address_;
     int mp1Port_;
 
+    // DEMO WP6 Live statistics
+    static omnetpp::simsignal_t numMecAppSignal_;
+    omnetpp::cOutVector app_stats_;
+
     //------------------------------------
     //parameters to control the number of MEC APPs instantiated and to set gate sizes
     int maxMECApps;
     int currentMEApps;
+
+    int currentBackgroundMEApps_;
 
     int mecAppPortCounter; // counter to assign socket ports to Mec Apps
     //------------------------------------

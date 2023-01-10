@@ -15,9 +15,12 @@
 
 Define_Module(VirtualisationInfrastructureManager);
 
+simsignal_t VirtualisationInfrastructureManager::numMecAppSignal_ = registerSignal("numMecAppSignal");
+
 VirtualisationInfrastructureManager::VirtualisationInfrastructureManager()
 {
     currentMEApps = 0;
+    currentBackgroundMEApps_ = 0;
 }
 
 void VirtualisationInfrastructureManager::initialize(int stage)
@@ -35,6 +38,7 @@ void VirtualisationInfrastructureManager::initialize(int stage)
     binder_ = getBinder();
     //------------------------------------
 
+    app_stats_.setName("number_mec_app_vector");
 
     //------------------------------------
     mecHost = getParentModule();
@@ -510,6 +514,9 @@ bool VirtualisationInfrastructureManager::registerMecApp(int ueAppID, int reqRam
         EV << "VirtualisationInfrastructureManager::registerMecApp - resources ALLOCATED for independent MecApp with module id " << ueAppID  << " admission control [" << admControl << "]"<< endl;
         EV << "VirtualisationInfrastructureManager::registerMecApp - ram: " << mecAppMap[ueAppID].resources.ram <<" disk: "<< mecAppMap[ueAppID].resources.disk <<" cpu: "<< mecAppMap[ueAppID].resources.cpu << endl;
         allocateResources(reqRam, reqDisk, cpu);
+
+        emit(numMecAppSignal_, currentMEApps);
+        app_stats_.record(currentMEApps);
         return true;
     }
 
@@ -528,6 +535,8 @@ bool VirtualisationInfrastructureManager::deRegisterMecApp(int ueAppID)
         deallocateResources(mecAppMap[ueAppID].resources.ram, mecAppMap[ueAppID].resources.disk, mecAppMap[ueAppID].resources.cpu);
         //erasing map entry
         mecAppMap.erase(ueAppID);
+        emit(numMecAppSignal_, currentMEApps);
+        app_stats_.record(currentMEApps);
         return true;
     }
     else
