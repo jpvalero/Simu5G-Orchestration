@@ -75,24 +75,34 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
 
         omnetpp::cMessage* deltaMsg_;
         double deltaTime_;
-        double mecHostActivationTime_;
+
+        // maximum and minimum load of a MEC host from the perspective of the orchestrator
         int maxBgMecApp_;
         int minBgMecApp_;
         int currentBgMecApps_;
         Mode mode_;
 
+        // the function is called at the beginning of a snapshot to create or destroy background applications and keep only "numApps" active. Applications are deployed uniformly across active MEC hosts.
+        // It can also be called periodically to balance the load among MEC hosts
         void updateBgMecAppsLoad(int numApps);
 
-        OrchestrationType orchestrationType_;
-
+        // handles periodic calls of the updateBgMecAppsLoad function
         bool enablePeriodicLoadBalancing_;
         omnetpp::simtime_t balancingInterval_;
         omnetpp::cMessage* balancingTimer_;
-        bool enableHostActivationDelay_;
 
+        // used to manage the updates in the "updateBgMecAppsLoad" function and avoid unnecessary reconfiguration
         int lastBalancedApps_;
         int lastBalancedHosts_;
 
+        OrchestrationType orchestrationType_;
+
+        // handles the activation time of MEC hosts. Deactivation is instead instantaneous.
+        bool enableHostActivationDelay_;
+        double mecHostActivationTime_;
+
+
+        // orchestration functions
         void doOrchestration( int numApps );
         void dummyOrchestration( int numApps );
         void externalOrchestration( int numApps );
@@ -115,9 +125,8 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         cModule * createBgMecApp(int id);
         cModule * createBgUE(int id);
 
+        // relocate an existing application to the specified mec host
         bool relocateBgMecApp(int appId, cModule* mecHost);
-
-
 
         // this method calls deleteBgMecApp and deleteBgUe
         void deleteBgModules();
@@ -125,9 +134,10 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         void deleteBgUe(int id);
 
         void readMecHosts();
-        // dummy method. It chooses the last started mecHost ALWYAS supposing it has enough resources
+        // dummy method. It chooses the last started mecHost ALWYAS assuming it has enough resources
         cModule* chooseMecHost();
 
+        // triggers the delayed activation of a MEC host
         void triggerMecHostActivation();
 
         void activateNewMecHost();

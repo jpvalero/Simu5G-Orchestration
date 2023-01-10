@@ -245,6 +245,9 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
 {
     if(msg->isSelfMessage())
     {
+        // ==============================
+        //      SNAPSHOT UPDATE
+        // ==============================
         if(msg->isName("snapshotMsg"))
         {
             // read running bgApp
@@ -260,13 +263,29 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
             snapshotList_.pop_front();
             bgAppsVector_.record(currentBgMecApps_);
             scheduleNextSnapshot();
-        }
+        }// ==============================
+
+
+        // ==============================
+        //   PERIODIC LOAD BALANCING
+        // ==============================
         else if(msg->isName("balancingTimer"))
         {
             EV << "BgMecAppManager::handleMessage (balanceTimer) - re-balancing load among servers" << endl;
             updateBgMecAppsLoad(currentBgMecApps_);
             scheduleAfter(balancingInterval_, balancingTimer_);
         }
+        // ==============================
+
+
+        // ==============================
+        //   DELAYED MEC HOST ACTIVATION
+        // ==============================
+        else if(msg->isName("mecHostActivation"))
+        {
+            activateNewMecHost();
+            delete msg;
+        }// ==============================
 
 
 
@@ -294,19 +313,12 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
                 deleteBgModules();
                 if(currentBgMecApps_ == 0)
                     mode_ = CREATE;
-
             }
             scheduleAfter(deltaTime_, deltaMsg_);
             bgAppsVector_.record(currentBgMecApps_);
         }
         // ==========================
 
-
-        else if(msg->isName("mecHostActivation"))
-        {
-            activateNewMecHost();
-            delete msg;
-        }
     }
 }
 
