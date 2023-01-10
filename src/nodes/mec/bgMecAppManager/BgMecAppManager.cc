@@ -380,10 +380,8 @@ void BgMecAppManager::externalOrchestration(int numApps)
     // k: current number of tasks
     // m: number of servers
     // n: server capacity
-    cmd << numApps << " " << lastMecHostActivated_+1 << " " << maxBgMecApp_ ;
-
+    cmd << numApps << " " << lastMecHostActivated_+1 << " " << maxBgMecApp_ << " " << simTime();
     cmd << " > decisionFile.txt";
-
     std::string commandString = cmd.str();
 
     EV << "BgMecAppManager::externalOrchestration - launching command " << commandString << endl;

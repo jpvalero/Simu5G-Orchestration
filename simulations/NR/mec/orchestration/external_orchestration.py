@@ -2,6 +2,7 @@
 # coding: utf-8 
 
 import sys
+from numpy import double
 
 # k: current number of tasks
 # m: number of servers
@@ -28,6 +29,7 @@ if __name__ == "__main__":
     tasks = int(sys.argv[1])        
     m = int(sys.argv[2])
     n = int(sys.argv[3]) 
+    time = double(sys.argv[4])
     method = 'by_threshold'
     
     action = orchestration(tasks, m, n, method)

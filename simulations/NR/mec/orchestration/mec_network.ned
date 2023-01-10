@@ -38,7 +38,7 @@ network mec_network
         double playgroundSizeZ @unit(m); // z size of the area the nodes are in (in meters)
 
         @statistic[serviceLatency](source=ue[0].app[0].cbrReqServiceTimeSignal; record=figure; targetFigure=serviceLatencyGauge; checkSignals=false);
-        @figure[serviceLatencyGauge](type=gauge; pos=190,30; size=100,100; minValue=0; maxValue=0.1; tickSize=0.01; label="App service latency");
+        @figure[serviceLatencyGauge](type=gauge; pos=700,10; size=100,100; minValue=0; maxValue=0.1; tickSize=0.01; label="App service latency");
 
         @statistic[serviceLatency2](source=ue[0].app[0].cbrReqServiceTimeSignal*1000; record=figure; targetFigure=serviceLatencyGauge2; checkSignals=false);
         @figure[serviceLatencyGauge2](type=plot; pos=700,140; size=400,200; timeWindow=20; maxY=100; yTickSize=10; label="App service latency");
