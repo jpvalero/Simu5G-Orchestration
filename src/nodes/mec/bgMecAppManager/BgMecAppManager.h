@@ -85,6 +85,14 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
 
         OrchestrationType orchestrationType_;
 
+        bool enablePeriodicLoadBalancing_;
+        omnetpp::simtime_t balancingInterval_;
+        omnetpp::cMessage* balancingTimer_;
+        bool enableHostActivationDelay_;
+
+        int lastBalancedApps_;
+        int lastBalancedHosts_;
+
         void doOrchestration( int numApps );
         void dummyOrchestration( int numApps );
         void externalOrchestration( int numApps );
@@ -119,6 +127,9 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         void readMecHosts();
         // dummy method. It chooses the last started mecHost ALWYAS supposing it has enough resources
         cModule* chooseMecHost();
+
+        void triggerMecHostActivation();
+
         void activateNewMecHost();
         void deactivateNewMecHost(cModule* module);
         void deactivateLastMecHost();

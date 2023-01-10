@@ -26,7 +26,9 @@ simple BgMecAppManager
 	    string mecHostList = default("mecHost"); //comma-space separatedList of MecHosts
 	    
 	    int orchestrationType = default(0); // DUMMY_ORCHESTRATION = 0 , EXTERNAL_ORCHESTRATION = 1
-        
+	    bool enablePeriodicLoadBalancing = default(false);
+    	double balancingInterval @unit(s) = default(0.5s);
+    	
         // if automatic == true
         double deltaTime @unit(s) = default(1s);
         int maxBgMecApps = default(10);
@@ -40,6 +42,7 @@ simple BgMecAppManager
         double radius @unit(m) ;
         
         double mecHostActivation @unit(s) = default(1s);
+        bool enableHostActivationDelay = default(false);
        
         @display("i=abstract/penguin");
 }

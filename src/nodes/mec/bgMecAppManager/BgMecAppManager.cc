@@ -56,6 +56,19 @@ void BgMecAppManager::initialize(int stage)
     currentBgMecApps_ = 0;
     readMecHosts();
 
+    enablePeriodicLoadBalancing_ = par("enablePeriodicLoadBalancing").boolValue();
+    balancingInterval_ = par("balancingInterval");
+    lastBalancedApps_ = -1; // last number of application seen by the load balancer (used to avoid unnecessary balancing)
+    lastBalancedHosts_ = -1; // last number of active hosts seen by the load balancer (used to avoid unnecessary balancing)
+
+    enableHostActivationDelay_ = par("enableHostActivationDelay").boolValue();
+
+    if(enablePeriodicLoadBalancing_)
+    {
+        balancingTimer_ = new cMessage("balancingTimer");
+        scheduleAfter(balancingInterval_, balancingTimer_);
+    }
+
     int orch = par("orchestrationType").intValue();
     switch(orch)
     {
@@ -108,9 +121,9 @@ void BgMecAppManager::initialize(int stage)
                 timeLine += snapshotPeriod_;
                 time = timeLine.dbl();
             }
-            inputFileStream >> num;  // newsnapShot.numMecApps;
             if(!inputFileStream.eof())
             {
+                inputFileStream >> num;  // newsnapShot.numMecApps;
                 newsnapShot.snapShotTime = time;
                 newsnapShot.numMecApps = num;
                 snapshotList_.push_back(newsnapShot);
@@ -248,6 +261,12 @@ bool BgMecAppManager::relocateBgMecApp(int appId, cModule* mecHost)
             bgAppsVector_.record(currentBgMecApps_);
             scheduleNextSnapshot();
         }
+        else if(msg->isName("balancingTimer"))
+        {
+            EV << "BgMecAppManager::handleMessage (balanceTimer) - re-balancing load among servers" << endl;
+            updateBgMecAppsLoad(currentBgMecApps_);
+            scheduleAfter(balancingInterval_, balancingTimer_);
+        }
 
 
 
@@ -308,16 +327,29 @@ void BgMecAppManager::doOrchestration( int numApps )
     return;
 }
 
+void BgMecAppManager::triggerMecHostActivation()
+{
+    if(enableHostActivationDelay_)
+    {
+        cMessage* activateMecHostMsg = new cMessage("mecHostActivation");
+        scheduleAfter(mecHostActivationTime_, activateMecHostMsg);
+        EV << "BgMecAppManager::triggerMecHostActivation - Scheduling MEC HOST activation in " << mecHostActivationTime_ << " seconds" << endl;
+    }
+    else
+    {
+        EV << "BgMecAppManager::triggerMecHostActivation - Instantaneous MEC HOST activation" << endl;
+        activateNewMecHost();
+    }
+}
 
 void BgMecAppManager::dummyOrchestration( int numApps )
 {
     EV << "BgMecAppManager::dummyOrchestration - apps per hosts: " << numApps/runningMecHosts_.size() << ". max[" << maxBgMecApp_ << "] - min[" << minBgMecApp_ << "]" << endl;
     if( numApps/runningMecHosts_.size() >= maxBgMecApp_)
     {
-        EV << "BgMecAppManager::dummyOrchestration - Scheduled activation of a new Mec host now." << endl; // << mecHostActivationTime_ << " seconds" << endl;
-        // cMessage* activateMecHostMsg = new cMessage("mecHostActivation");
-        // scheduleAfter(mecHostActivationTime_, activateMecHostMsg);
-        activateNewMecHost();
+        EV << "BgMecAppManager::dummyOrchestration - Triggering activation of a new Mec host." << endl;
+        triggerMecHostActivation();
+
     }
     else if( numApps/runningMecHosts_.size() <= minBgMecApp_ )
     {
@@ -353,7 +385,7 @@ void BgMecAppManager::externalOrchestration(int numApps)
 
     EV << "BgMecAppManager::externalOrchestration - decision is " << activate << endl;
     if ( activate == 1 )
-        activateNewMecHost();
+        triggerMecHostActivation();
     else if( activate == -1 )
         deactivateLastMecHost();
     else
@@ -365,8 +397,16 @@ void BgMecAppManager::externalOrchestration(int numApps)
 void BgMecAppManager::updateBgMecAppsLoad(int numApps)
 {
     int deltaApps = numApps - currentBgMecApps_;
-
     EV << "BgMecAppManager::updateBgMecAppsLoad - currentApps[" << currentBgMecApps_ << "] - targetApps[" << numApps << "] - deltaApps[" << deltaApps << "]" << endl;
+
+    // this avoid re-balancing the load when the load in unchanged
+    if( (lastBalancedApps_ == currentBgMecApps_) && (lastBalancedHosts_ == lastMecHostActivated_) && deltaApps == 0 )
+    {
+        EV << "BgMecAppManager::updateBgMecAppsLoad - nothing to do" << endl;
+        return;
+    }
+    lastBalancedApps_ = currentBgMecApps_;
+    lastBalancedHosts_ = lastMecHostActivated_;
 
     // ==================== Service REMOVAL ====================
     // first delete applications if needed
@@ -382,19 +422,23 @@ void BgMecAppManager::updateBgMecAppsLoad(int numApps)
     // relocate a total of currentBgMecApps_ over lastMecHostActivated_
     int appPerHost = floor(currentBgMecApps_ / (lastMecHostActivated_+1));
     EV << "BgMecAppManager::updateBgMecAppsLoad - RELOCATION: appsPerHost = " << currentBgMecApps_<< " / " << lastMecHostActivated_+1 << " = " << appPerHost << endl;
-    int hostId = 0, appId = 0;
+    int hostId = 0, appId = 0, relocated = 0;
 
     for( hostId = 0 ; hostId <= lastMecHostActivated_ ; ++hostId )
     {
         for( appId = 0 ; appId < appPerHost ; ++appId )
+        {
             relocateBgMecApp(appId+(hostId*appPerHost), runningMecHosts_[hostId]);
+            ++relocated;
+            EV << "\t " << appId << "]" << appId+(hostId*appPerHost) << "/" << appPerHost << " on " << hostId << ". (total " << relocated << ")"<< endl;
+        }
     }
 
     // handle remaining app (in case currentBgMecApps_ is not a multiple of lastMecHostActivated_
-    if( appId < currentBgMecApps_ )
+    if( relocated < currentBgMecApps_ )
     {
-        EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app" << endl;
-        relocateBgMecApp(appId, runningMecHosts_[0]);
+        EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app on host 0" << endl;
+        relocateBgMecApp(relocated, runningMecHosts_[0]);
     }
     // =========================================================
 
@@ -405,17 +449,22 @@ void BgMecAppManager::updateBgMecAppsLoad(int numApps)
     {
         // activate a total of deltaApps over lastMecHostActivated_
         appPerHost = floor(deltaApps / (lastMecHostActivated_+1));
+        int created = 0;
         EV << "BgMecAppManager::updateBgMecAppsLoad - CREATION: appsPerHost = " << deltaApps<< " / " << lastMecHostActivated_+1 << " = " << appPerHost << endl;
 
         for( hostId = 0 ; hostId <= lastMecHostActivated_ ; ++hostId )
         {
             for( appId = 0 ; appId < appPerHost ; ++appId )
+            {
                 createBgModules(runningMecHosts_[hostId]);
+                ++created;
+                EV << "\t " << appId << "]" << appId << "/" << appPerHost << " on " << hostId << ". (total " << created << ")"<< endl;
+            }
         }
         // handle remaining app (in case deltaApps is not a multiple of lastMecHostActivated_
-        if( appId < deltaApps )
+        if( created < deltaApps )
         {
-            EV << "BgMecAppManager::updateBgMecAppsLoad - relocating last app" << endl;
+            EV << "BgMecAppManager::updateBgMecAppsLoad - creating last app on host "<< lastMecHostActivated_ << endl;
             createBgModules(runningMecHosts_[lastMecHostActivated_]);
         }
     }
