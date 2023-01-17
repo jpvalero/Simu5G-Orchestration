@@ -9,6 +9,8 @@
 #include "BgMecAppManager.h"
 #include "nodes/mec/bgMecAppManager/timer/BgTimer_m.h"
 #include "nodes/mec/VirtualisationInfrastructureManager/VirtualisationInfrastructureManager.h"
+#include "apps/CbrRequestResponse/CbrRequester.h"
+#include "apps/CbrRequestResponse/CbrResponder.h"
 
 using namespace omnetpp;
 
@@ -33,6 +35,8 @@ BgMecAppManager::BgMecAppManager()
 {
     deltaMsg_ = nullptr;
     snapMsg_ = nullptr;
+    orchestratedApp_ = nullptr;
+    orchestratedResponder_ = nullptr;
 }
 
 
@@ -393,11 +397,39 @@ void BgMecAppManager::externalOrchestration(int numApps)
     int activate;
     inputFileStream >> activate;
 
+
+    //============== EXTREME EDGE ORCHESTRATION ==============
+    // verify the availability of extreme-edge resources
+    unsigned int reqGNB = -1, respGNB = -1;
+    if( orchestratedApp_ != nullptr )
+    {
+        reqGNB = orchestratedApp_->getCurrentgNB();
+    }
+    if( orchestratedResponder_ != nullptr )
+    {
+        respGNB = orchestratedResponder_->getCurrentgNB();
+    }
+
+    EV << "BgMecAppManager::externalOrchestration - APP on gNB " << reqGNB << " - exEdge resource on gNB " << respGNB << endl;
+    // if a new server would be needed, but an extreme edge node is available
+    if( activate == 1 && reqGNB == respGNB )
+    {
+        activate = 3;
+    }
+    //========================================================
+
     EV << "BgMecAppManager::externalOrchestration - decision is " << activate << endl;
     if ( activate == 1 )
         triggerMecHostActivation();
     else if( activate == -1 )
+    {
         deactivateLastMecHost();
+        changeServingEdge(2); // set to EDGE
+    }
+    else if( activate == 2 ) // set to EDGE
+        changeServingEdge(activate);
+    else if( activate == 3 ) // set to extreme EDGE
+        changeServingEdge(activate);
     else
         return;
 
@@ -674,4 +706,13 @@ bool BgMecAppManager::isMecHostEmpty(cModule* mecHost)
     }
     EV << "BgMecAppManager::isEmpty - the mecHost is not running" << endl;
     throw cRuntimeError("BgMecAppManager::isEmpty - the mecHost [%s] is not running", mecHost->getFullName());
+}
+
+
+void BgMecAppManager::changeServingEdge( int action )
+{
+    if( action == 2 )
+        orchestratedApp_->setCurrentResponder(PRIMARY);
+    if( action == 3 )
+        orchestratedApp_->setCurrentResponder(SECONDARY);
 }

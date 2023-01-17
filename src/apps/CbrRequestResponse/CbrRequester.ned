@@ -26,6 +26,13 @@ simple CbrRequester like IApp
         double finishTime @unit("s") = default(0s);
         int tos = default(-1); // if not -1, set the Type Of Service (IPv4) / Traffic Class (IPv6) field of sent packets to this value
         
+        bool enableSecondaryResponder = default(false);
+        string secondaryDestAddress;
+        int secondaryLocalPort;
+        int secondaryDestPort = default(3000);
+        
+        bool enableOrchestration = default(false);
+        
         bool enableLocalComputation @mutable = default(false);
         double minLocalComputeTime @unit("s")= default(10ms);
         double maxLocalComputeTime @unit("s")= default(15ms); 

@@ -19,14 +19,25 @@
 #include <inet/transportlayer/contract/udp/UdpSocket.h>
 #include <inet/networklayer/common/L3AddressResolver.h>
 
+#include "nodes/mec/bgMecAppManager/BgMecAppManager.h"
+#include "stack/phy/layer/NRPhyUe.h"
+
 #include "CbrRequest_m.h"
 #include "CbrResponse_m.h"
+
+
 
 class CbrRequester : public omnetpp::cSimpleModule
 {
     inet::UdpSocket socket;
+    inet::UdpSocket secondarySocket;
     //has the sender been initialized?
     bool initialized_;
+
+    bool enableOrchestration_;
+    BgMecAppManager * orchestrator_;
+
+    NRPhyUe* nrPhy_;
 
     omnetpp::cMessage* selfSource_;
 
@@ -57,12 +68,25 @@ class CbrRequester : public omnetpp::cSimpleModule
     int destPort_;
     inet::L3Address destAddress_;
 
+    int secondaryDestPort_;
+    int secondaryLocalPort_;
+    inet::L3Address secondaryDestAddress_;
+
+    int tempCounter_;
+
+    CurrentResponder currentResponder_;
+
     void initTraffic();
     void sendCbrRequest();
 
   public:
     ~CbrRequester();
     CbrRequester();
+
+    void setCurrentResponder( CurrentResponder responder );
+    CurrentResponder getCurrentResponder() { return currentResponder_; }
+
+    unsigned int getCurrentgNB() { return nrPhy_->getMasterId(); };
 
   protected:
 

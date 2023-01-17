@@ -23,6 +23,8 @@
 #include "CbrResponse_m.h"
 
 #include "nodes/mec/VirtualisationInfrastructureManager/VirtualisationInfrastructureManager.h"
+#include "nodes/mec/bgMecAppManager/BgMecAppManager.h"
+#include "stack/phy/layer/NRPhyUe.h"
 
 class CbrResponder : public omnetpp::cSimpleModule
 {
@@ -52,6 +54,10 @@ class CbrResponder : public omnetpp::cSimpleModule
 
     VirtualisationInfrastructureManager* vim;
 
+    bool enableOrchestration_;
+    BgMecAppManager * orchestrator_;
+    NRPhyUe* nrPhy_;
+
     omnetpp::cOutVector rt_stats_;
 
     omnetpp::simsignal_t cbrReqRcvdPkt_;
@@ -62,6 +68,9 @@ class CbrResponder : public omnetpp::cSimpleModule
     void initialize(int stage) override;
     void handleMessage(omnetpp::cMessage *msg) override;
     virtual void finish() override;
+
+  public:
+    unsigned int getCurrentgNB() { return  nrPhy_->getMasterId(); };
 };
 
 #endif

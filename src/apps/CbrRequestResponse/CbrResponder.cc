@@ -47,7 +47,18 @@ void CbrResponder::initialize(int stage)
             destAddress_ = inet::L3AddressResolver().resolve(par("destAddress").stringValue());
             destPort_ = par("destPort");
 
-            vim = check_and_cast<VirtualisationInfrastructureManager*>(getParentModule()->getSubmodule("vim"));
+            if( par("computingType").intValue() ==  0 )
+                vim = check_and_cast<VirtualisationInfrastructureManager*>(getParentModule()->getSubmodule("vim"));
+
+            enableOrchestration_ = par("enableOrchestration").boolValue();
+            if(enableOrchestration_)
+            {
+                orchestrator_ = check_and_cast<BgMecAppManager*>(getModuleByPath("bgMecAppManager"));
+                orchestrator_->registerOrchestratedResponder(this);
+
+                nrPhy_ = check_and_cast<NRPhyUe*>(getParentModule()->getSubmodule("cellularNic")->getSubmodule("nrPhy"));
+            }
+
             processingTimer_  = new cMessage("computeMsg");
         }
     }
@@ -88,12 +99,23 @@ void CbrResponder::handleMessage(cMessage *msg)
         simtime_t processingTime = 0;
         if( par("enableVimComputing").boolValue() )
         {
-            int numInstructions = par("serviceComplexity").doubleValue() * 1000000;
-            processingTime = vim->calculateProcessingTime(-1, numInstructions) ;
-            EV << "CbrResponder::handleMessage - requesting a processing time of " << processingTime << " seconds for " << numInstructions << " instructions" <<endl;
+            int computingType = par("computingType");
+            if( computingType == 0 )
+            {
+                int numInstructions = par("serviceComplexity").doubleValue() * 1000000;
+                processingTime = vim->calculateProcessingTime(-1, numInstructions) ;
+                EV << "CbrResponder::handleMessage - requesting an Edge-Based processing time of " << processingTime << " seconds for " << numInstructions << " instructions" <<endl;
+            }
+            else if( computingType == 1 )
+            {
+                processingTime = par("extremeEdgeComputingTime");
+                EV << "CbrResponder::handleMessage - requesting a Extreme-Edge-Based processing time of " << processingTime << " seconds" <<endl;
+            }
 
             rt_stats_.record(processingTime);
         }
+
+
 
 
         respPacket_ = new Packet("CBR");

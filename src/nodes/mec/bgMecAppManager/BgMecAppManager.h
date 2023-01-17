@@ -14,6 +14,10 @@
 
 #include "nodes/mec/utils/MecCommon.h"
 
+// forward declaration
+class CbrRequester;
+class CbrResponder;
+
 typedef enum
 {
     START_TIMER = 0,
@@ -30,6 +34,11 @@ typedef enum {
     EXTERNAL_ORCHESTRATION = 1,
     UNKNOWN_ORCHESTRATION = 2
 }OrchestrationType;
+
+typedef enum {
+    PRIMARY = 0,
+    SECONDARY = 1
+}CurrentResponder;
 
 typedef struct
 {
@@ -61,6 +70,9 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         std::vector<cModule*> runningMecHosts_;
 
         omnetpp::cOutVector bgAppsVector_;
+
+        CbrRequester* orchestratedApp_;
+        CbrResponder* orchestratedResponder_;
 
         bool fromTraceFile_;
         std::list<Snapshot> snapshotList_;
@@ -106,6 +118,7 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         void doOrchestration( int numApps );
         void dummyOrchestration( int numApps );
         void externalOrchestration( int numApps );
+        void changeServingEdge( int action );
 
 
     public:
@@ -145,8 +158,8 @@ class BgMecAppManager : public omnetpp::cSimpleModule {
         void deactivateLastMecHost();
         bool isMecHostEmpty(cModule* module);
 
-
-
+        void registerOrchestratedApp(CbrRequester* module){ orchestratedApp_ = module; };
+        void registerOrchestratedResponder( CbrResponder * module){ orchestratedResponder_ = module; };
 };
 
 

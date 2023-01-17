@@ -32,6 +32,7 @@ network mec_network
         @display("i=block/network2;bgb=811.0225,507.6475;bgi=background/pisa");
 
         int numUes = default(0);
+        int numExtremeEdgeResources = default(0);
 
         double playgroundSizeX @unit(m); // x size of the area the nodes are in (in meters)
         double playgroundSizeY @unit(m); // y size of the area the nodes are in (in meters)
@@ -79,6 +80,9 @@ network mec_network
         }
         ue[numUes]: NRUe {
             @display("p=237.64375,310.45377");
+        }
+        ueExtremeEdge[numExtremeEdgeResources]: NRUe {
+            @display("p=113.44199,383.25;i=device/card");
         }
         //# MEC module
         mecHost1: MECHost {

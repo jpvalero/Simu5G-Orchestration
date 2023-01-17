@@ -56,12 +56,27 @@ void CbrRequester::initialize(int stage)
         localPort_ = par("localPort");
         destPort_ = par("destPort");
 
+        secondaryLocalPort_ = par("secondaryLocalPort");
+        secondaryDestPort_ = par("secondaryDestPort");
+
         txBytes_ = 0;
 
         rt_stats_.setName("response_time_vector");
+
+        currentResponder_ = PRIMARY;
+        tempCounter_ = 0;
+        enableOrchestration_ = par("enableOrchestration").boolValue();
     }
     else if (stage == INITSTAGE_APPLICATION_LAYER)
     {
+        if(enableOrchestration_)
+        {
+            orchestrator_ = check_and_cast<BgMecAppManager*>(getModuleByPath("bgMecAppManager"));
+            orchestrator_->registerOrchestratedApp(this);
+
+            nrPhy_ = check_and_cast<NRPhyUe*>(getParentModule()->getSubmodule("cellularNic")->getSubmodule("nrPhy"));
+        }
+
         // calculating traffic starting time
         startTime_ = par("startTime");
         finishTime_ = par("finishTime");
@@ -124,6 +139,21 @@ void CbrRequester::initTraffic()
 
         EV << simTime() << "CbrRequester::initialize - binding to port: local:" << localPort_ << " , dest: " << destAddress_.str() << ":" << destPort_ << endl;
 
+
+        if( par("enableSecondaryResponder").boolValue() )
+        {
+            secondaryDestAddress_ = inet::L3AddressResolver().resolve(par("secondaryDestAddress").stringValue());
+
+            // set primary and secondary address
+            secondarySocket.setOutputGate(gate("socketOut"));
+            secondarySocket.bind(secondaryLocalPort_);
+
+            if (tos != -1)
+                secondarySocket.setTos(tos);
+
+            EV << simTime() << "CbrRequester::initialize - secondary binding to port: local:" << secondaryLocalPort_ << " , dest: " << secondaryDestAddress_.str() << ":" << secondaryDestPort_ << endl;
+        }
+
         // calculating traffic starting time
         simtime_t startTime = par("startTime");
 
@@ -147,7 +177,6 @@ void CbrRequester::sendCbrRequest()
     }
     else
     {
-        EV << "CbrRequester::sendCbrRequest - handling service request remotely" << endl;
         Packet* packet = new Packet("CBR");
         auto cbr = makeShared<CbrRequest>();
         cbr->setNframes(nframes_);
@@ -164,7 +193,38 @@ void CbrRequester::sendCbrRequest()
         {
             txBytes_ += size_;
         }
-        socket.sendTo(packet, destAddress_, destPort_);
+
+
+        if( currentResponder_ == PRIMARY )
+        {
+            EV << "CbrRequester::sendCbrRequest - handling service request remotely from PRIMARY responder" << endl;
+            socket.sendTo(packet, destAddress_, destPort_);
+        }
+
+        else if( currentResponder_ == SECONDARY )
+        {
+            EV << "CbrRequester::sendCbrRequest - handling service request remotely from SECONDARY responder" << endl;
+            secondarySocket.sendTo(packet, secondaryDestAddress_, secondaryDestPort_);
+        }
+
+        // XXX only for testing
+//        ++tempCounter_;
+//        if( tempCounter_ == 10 )
+//        {
+//            EV << "CbrRequester::sendCbrRequest - switching responder to ";
+//            if( currentResponder_ == PRIMARY )
+//            {
+//                currentResponder_ = SECONDARY;
+//                EV << "SECONDARY" << endl;
+//            }
+//            else if( currentResponder_ == SECONDARY )
+//            {
+//                currentResponder_ = PRIMARY;
+//                EV << "PRIMARY" << endl;
+//            }
+//
+//            tempCounter_ = 0;
+//        }
     }
 
     scheduleAt(simTime() + sampling_time, selfSource_);
@@ -194,9 +254,26 @@ void CbrRequester::doLocalService(omnetpp::cMessage *msg)
     delete msg;
 }
 
+void CbrRequester::setCurrentResponder( CurrentResponder responder )
+{
+    EV << "CbrRequester::setCurrentResponder - setting current responder to ";
+    if( responder == PRIMARY )
+    {
+        EV << "SECONDARY";
+    }
+    else if( responder == SECONDARY )
+    {
+        EV << "PRIMARY";
+    }
+
+    EV << ". (Was " << currentResponder_ << ") "<< endl;
+    currentResponder_ = responder;
+}
+
 
 void CbrRequester::finish()
 {
     simtime_t elapsedTime = simTime() - getSimulation()->getWarmupPeriod();
     emit( cbrReqGeneratedThroughtputSignal_, txBytes_ / elapsedTime.dbl() );
 }
+
