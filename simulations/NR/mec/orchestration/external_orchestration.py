@@ -17,6 +17,22 @@ def orchestration(k, m, n, method):
             return -1                # deactivate server  
         else: 
             return 0                 # no action required 
+    elif method == 'reactive':                  
+        if k == m*n:                 # activation when reaching maximum capacity 
+            return 1                  
+        elif k < (m-1)*n - 1: 
+            return -1                  
+        else: 
+            return 0    
+    elif method == 'conservative':   # activation when reaching percentage
+        percentage_activation = 0.5
+        percentage_deactivation = 0.2 
+        if k >= percentage_activation*m*n:  
+            return 1 
+        elif k <= percentage_deactivation*m*n: 
+            return -1
+        else: 
+            return 0 
         
         
             
